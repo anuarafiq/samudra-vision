@@ -142,6 +142,25 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
   cropping and visually inspecting sample boxes per class ID, not from official docs (none could
   be found, including the associated conference paper). Written into this dataset's `data.yaml`.
   Tanker (475, unrelated to this fix) is now the only remaining "collect more" gap.
+- **Aggregate sufficiency numbers were hiding a severe frontal/aerial imbalance (found
+  2026-07-29).** The old sufficiency table pooled both views into one instance count per class,
+  which made every mandatory class look "good." Splitting by view (see the definitive mapping
+  above) shows **5 of 8 mandatory classes have zero aerial-view instances**: cargo, yacht,
+  speedboat, fishing_boat, military. Every aerial-view mandatory-class instance in the entire
+  `datasets/` folder, across all sourcing sessions, comes from exactly one dataset
+  (`VESSELimg.v4i`, and only 3 of its 6 classes). `container_ship` is skewed the opposite way
+  (81% aerial, only 1327 frontal instances, the weakest frontal count of any class). Of the two
+  non-zero-aerial classes, `passenger_ferry`'s aerial count (1703) actually clears the ~800-1000
+  floor on its own, only `tanker` is genuinely thin in aerial specifically (307, well under
+  floor, despite 2399 total). This isn't a volume problem the ~800-1000 floor rule catches
+  when applied to pooled counts, it needs applying per class-per-view instead: a model can look
+  fully trained on paper and still have never seen a cargo ship, yacht, speedboat, fishing boat,
+  or military vessel from directly overhead. Given
+  the mission statement explicitly requires both **frontal-view and aerial/satellite-view**
+  classification, and Phase 2's hidden stress test could include either angle, this is now a
+  real risk to flag in the Technical Brief at minimum, and ideally source against: aerial-view
+  data for the 5 zero-coverage classes is the next highest-value sourcing target, higher
+  priority than further frontal-view volume for any class.
 - **`roboflow-maritime.v3i` is SAR/rescue-oriented, not vessel-typed**: labels
   people-in-water/jetski/buoy, not ship types. Useful only for generic small-craft localization
   in aerial view, not for the civilian/military taxonomy.
@@ -166,49 +185,138 @@ plus `README.roboflow.txt` / `README.dataset.txt` with license + source URL. `Da
 not a Roboflow export (no bundled `data.yaml` or license file), the `data.yaml` in that folder
 was written by hand here, source/license/DOI documented inside it.
 
-### Class remapping needed before merging
+### Class remapping: definitive mapping (recounted 2026-07-29)
 
-None of the raw class sets match the mandatory taxonomy verbatim. Before combining datasets for
-training, map source classes into: `container_ship`, `tanker`, `cargo`, `passenger_ferry`
-(civilian); `yacht`, `speedboat`, `fishing_boat` (small craft); `military` (generic, then a
-separate local/foreign step). Generic/ambiguous classes (`ship`, `boat`, `multi`, `ok`, `water`,
-`canoe`, `kayak`, `sailboat`, `patrol boat`, `sails boat`, `tugboat`) don't map 1:1 and need
-either a decision to drop, bucket into small-craft, or hand-review.
+None of the raw class sets match the mandatory taxonomy verbatim. Earlier versions of this doc
+described the remapping in prose only, and it drifted: the cargo bucket's own breakdown text
+didn't even sum to its stated total (9079 vs. the 5293 once shown here). The table below is a
+full recount straight from every dataset's `data.yaml` + label files (not carried over from
+old notes), so it's now the single source of truth for which raw class goes where. It also
+splits every number by `frontal-view`/`aerial-view`, see
+[Data sufficiency](#data-sufficiency-checked-2026-07-29-recounted-with-frontalaerial-split) for
+why that split matters.
 
-## Data sufficiency (checked 2026-07-29, updated 2026-07-29 after yacht + container_ship + tanker sourcing)
+**Mapped classes, grouped by mandatory bucket** (dataset :: raw class = instances [view]):
+
+- **container_ship**: `VESSELimg.v4i` :: Container = 5535 [aerial] · `Seaships7000.v1i` ::
+  container ship = 901 [frontal] · `Vessel.v2i` :: Container = 174 [frontal] · `MyBoats.v2i` ::
+  Container ship = 114 [frontal] · `typesofships.v6i` :: container = 74 [frontal] · `Tanker.v1i`
+  :: Container = 42 [frontal] · `ship detection.v2i` :: container ship = 22 [frontal]
+- **tanker**: `Tanker.v1i` :: Tanker = 1326 [frontal] · `vessel.v1i` :: Tanker = 350 [frontal] ·
+  `VESSELimg.v4i` :: Chemical = 307 [aerial] · `Vessel.v2i` :: tanker = 291 [frontal] · `Ship2.v1i`
+  :: Tanker = 101 [frontal] · `MyBoats.v2i` :: Oil tanker = 14 [frontal] · `ship detection.v2i`
+  :: tanker = 10 [frontal]
+- **cargo**: `Seaships7000.v1i` :: ore carrier = 2195, bulk cargo carrier = 1941, general cargo
+  ship = 1501 [all frontal] · `Boats Detection.v15i` :: cargo = 504 [frontal] · `Sea Vessels
+  Dataset` :: Merchant Ship = 366 [frontal] · `vessel.v1i` :: Carrier = 356, Cargo = 336
+  [frontal] · `MyBoats.v2i` :: General cargo ship = 303, Sand carrier = 115, Bulk carrier = 11
+  [frontal] · `Vessel.v2i` :: Bulker = 256 [frontal] · `Buoys and Boats` :: merchant_ship = 245
+  [frontal] · `ship detection.v2i` :: cargo ship = 244 [frontal] · `typesofships.v6i` ::
+  bulk_carrier = 108 [frontal] · `Ship2.v1i` :: Cargo = 100, Carrier = 100 [frontal] ·
+  `Tanker.v1i` :: Cargo = 52 [frontal]
+- **passenger_ferry**: `kapal-penumpang-done` :: kapal_penumpang = 2753 [frontal] ·
+  `VESSELimg.v4i` :: Passenger-RoRo = 1703 [aerial] · `ship detection.v2i` :: passenger ship =
+  1073 [frontal] · `vessel.v1i` :: Cruise = 685 [frontal] · `Seaships7000.v1i` :: passenger ship
+  = 473 [frontal] · `Ship2.v1i` :: Cruise = 177 [frontal] · `MyBoats.v2i` :: Coastal tourist
+  passenger ship = 59, Ro-ro ship = 15, Luxury Cruise = 9 [frontal] · `Yacht Detection` :: ferry
+  = 14 [frontal] · `Buoys and Boats` :: cruise = 3 [frontal]
+- **yacht**: `Yacht Detection` :: yacht = 2297 [frontal] · `Sea Vessels Dataset` :: Yacht = 361
+  [frontal] · `Boats Detection.v15i` :: yacht = 276 [frontal] · `typesofships.v6i` :: yacht = 90
+  [frontal] · `Buoys and Boats` :: yacht = 3 [frontal]
+- **speedboat**: `ship detection.v2i` :: speedboat = 3070 [frontal] · `Boats Detection.v15i` ::
+  speed = 348 [frontal] · `MyBoats.v2i` :: Speed boat = 9 [frontal]
+- **fishing_boat**: `Seaships7000.v1i` :: fishing boat = 2187 [frontal] · `ship detection.v2i`
+  :: fishing boat = 527 [frontal] · `Sea Vessels Dataset` :: Fishing Boat = 346 [frontal] ·
+  `MyBoats.v2i` :: Fishing vessel = 253 [frontal] · `Buoys and Boats` :: fishing_boat = 159
+  [frontal]
+- **military**: `Warship.v4i` :: warship = 3435 [frontal] · `ship detection.v2i` :: warship =
+  404 [frontal] · `Sea Vessels Dataset` :: Military Ship = 383 [frontal] · `Vessel.v2i` ::
+  warship = 376 [frontal] · `vessel.v1i` :: Warship = 347 [frontal] · `Sea Vessels Dataset` ::
+  Submarine = 315 [frontal] · `Ship2.v1i` :: Military = 104 [frontal] · `typesofships.v6i` ::
+  combat_vessel = 48 [frontal]
+
+Note every aerial-view contribution across the entire taxonomy comes from exactly one dataset,
+`VESSELimg.v4i` (Container, Chemical, Passenger-RoRo). No other aerial source contributes a
+single mandatory-class instance, see the finding below.
+
+**Excluded classes (generic, ambiguous, or outside the taxonomy)** — deliberately left
+unmapped, not an oversight, decision still open per dataset:
+
+- Generic/no-type-info (excluded everywhere): `roboflow-Military Ship Detection.v2i`'s `ship`
+  (3713), `roboflow-korean_marine_object.v1i`'s `-` (17525, broken export), `roboflow-MASATI.v1i`'s
+  entire class list (`ship`, `multi`, `coast_multi`, `ok`, `multi_224`, `water`, 5392 total),
+  `Buoys and Boats`' `boat`/`ship`/`buoy`/`bridge`/`barge`/`beacon`/`person` (14762 total)
+- SAR/rescue, not vessel-typed (excluded): `roboflow-maritime.v3i`'s `Person in water`/`Person
+  out of water`/`Boat`/`Person drowning` (8925 total, aerial)
+- Small-craft/support types not in the 8-class taxonomy (undecided, could bucket into
+  small-craft later): `sailboat`/`canoe`/`kayak` variants across several datasets, `Patrol
+  Boat`/`patrol_vessel`, `Tugboat`/`tug`, `jet ski`, `motorship`, `small boat`, `Rubber boat`,
+  `Wooden boat`, `Sailing boat`, `CoastGuard`, `Pilot` (aerial, `VESSELimg.v4i`), `Buoy`/`buoy`
+  (not a vessel), `LNG`/`gas carriers` (arguably tanker-adjacent, deliberately left out pending
+  a decision, see below), `anchor_handling_tug_supply`, `Sail`
+- `Datasense@CRAS`'s `sailboat`/`small boat`/`uncategorized` (unchanged from earlier finding)
+
+**Open decision, not yet made**: whether `LNG` (`MyBoats.v2i`, 16 instances, frontal) and `gas
+carriers` (`Vessel.v2i`, 209 instances, frontal) should map to `tanker` alongside `Chemical`
+(already mapped, since a chemical/gas/LNG carrier is a specialized tanker subtype). Left
+excluded here for consistency with how `gas carriers` was treated in earlier notes. Note both
+are frontal-view, so including them would pad tanker's already-strong frontal count, not touch
+the aerial gap, and LNG/gas carrier hulls look visually distinct from oil/chemical tankers so
+may deserve their own class rather than being folded in silently.
+
+## Data sufficiency (checked 2026-07-29, recounted with frontal/aerial split)
 
 Rule of thumb for fine-tuning a pretrained YOLO to a reliable recall number: ~800-1000 train
 instances and ~150-200 validation instances per class. Below that, recall on that class is
 noisy regardless of how good the model looks.
 
-Current instance counts after mapping raw classes into the mandatory taxonomy:
+Instance counts below are a direct recount from every dataset's label files (not carried over
+from prior sessions' prose), split by view, using the definitive mapping above. This supersedes
+all earlier versions of this table, some of which (cargo, military, container_ship,
+passenger_ferry) had drifted from an inconsistent, undocumented set of ambiguous-class
+decisions, see the note at the top of the class-remapping section.
 
-| Bucket | Instances | Status |
-|---|---|---|
-| container_ship | 7853 | fixed (was 923), now the best-covered class |
-| yacht | 3027 | fixed (was 0), `Yacht Detection` alone contributed 2297 |
-| military (warship + Military Ship + Submarine + Ship2's Military + typesofships' combat_vessel) | 5036 | good, genuinely distinct military labels, not just silhouette "warship" |
-| cargo | 5293 (+2651 ambiguous "carrier"/"ore carrier", +366 + 245 "Merchant Ship", +5709 Datasense@CRAS bulk/ore carrier, +108 typesofships' bulk_carrier) | good |
-| speedboat | 3427 | good |
-| fishing_boat | 3472 (+2227 Datasense@CRAS, +253 MyBoats, +159 Buoys and Boats) | good |
-| passenger_ferry | 5246 (+1113 genuine "ferry boat", +278 + 3 "cruise ship", +14 Yacht Detection's ferry, +2753 kapal-penumpang-done, rest still proxied via "cruise"/"passenger ship") | good |
-| tanker | 2399 | fixed (was 475), `roboflow-Tanker.v1i` alone contributed 1326 |
-| local vs. foreign military | 0 | still unsolved, doesn't exist in any off-the-shelf dataset |
+| Bucket | Frontal | Aerial | Total | Status |
+|---|---|---|---|---|
+| container_ship | 1327 | 5535 | 6862 | good total, but weakest **frontal** count of any class |
+| tanker | 2092 | 307 | 2399 | good total, but weakest **aerial** count of any non-zero class |
+| cargo | 8733 | **0** | 8733 | good total, **zero aerial** |
+| passenger_ferry | 5261 | 1703 | 6964 | good in both views independently |
+| yacht | 3027 | **0** | 3027 | good total, **zero aerial** |
+| speedboat | 3427 | **0** | 3427 | good total, **zero aerial** |
+| fishing_boat | 3472 | **0** | 3472 | good total, **zero aerial** |
+| military | 5412 | **0** | 5412 | good total, **zero aerial** |
+| local vs. foreign military | 0 | 0 | 0 | still unsolved, doesn't exist in any off-the-shelf dataset |
 
-Tanker took six targeted sourcing attempts (`Ship2` +101, `MyBoats` +14, MVDD13 a dead end, a
-round of Roboflow searches that found nothing new, `kapal-penumpang-done` which turned out
-single-class, then finally `roboflow-Tanker.v1i` + `roboflow-VESSELimg.v4i` + `roboflow-Vessel.v2i`
-which together added 1924, see findings above). Same pattern as yacht: multi-class datasets with
-tanker as a minor category gave diminishing returns until a dedicated tanker-only or
-tanker-heavy dataset (`Tanker` by Hungcheck, mirroring `Yacht Detection`'s role for the yacht
-gap) solved it in one shot.
+Every pooled total clears the ~800-1000 floor, which is why earlier passes over this table (in
+both this doc and TODO.md) called the class taxonomy fully solved. Per-view, the picture is
+different: **5 of 8 mandatory classes have zero aerial-view training data**, and `tanker`'s
+aerial count (307) is well under floor even though its pooled total looks fine. Only
+`passenger_ferry` and `container_ship` have real coverage in both views independently. See the
+finding above ("Aggregate sufficiency numbers were hiding a severe frontal/aerial imbalance")
+for what's driving this and why it matters for this project's mission specifically (frontal
+**and** aerial/satellite classification is a stated requirement, not a nice-to-have).
 
-Every mandatory class now clears the ~800-1000 floor. Only "local vs. foreign military" remains
-unsolved, and that's a labeling/classifier problem, not a volume problem (see "Military
-classification approach" in [TODO.md](TODO.md)).
+Tanker's *pooled* fix took six targeted sourcing attempts (`Ship2` +101, `MyBoats` +14, MVDD13 a
+dead end, a round of Roboflow searches that found nothing new, `kapal-penumpang-done` which
+turned out single-class, then finally `roboflow-Tanker.v1i` + `roboflow-VESSELimg.v4i` +
+`roboflow-Vessel.v2i` which together added 1924, see findings above). Same pattern as yacht:
+multi-class datasets with tanker as a minor category gave diminishing returns until a dedicated
+tanker-heavy dataset solved the pooled number in one shot. That fix did not touch the aerial
+gap though, only `VESSELimg.v4i` (aerial) contributed, and only 307 instances.
 
-Verdict: **sufficient to start training** the civilian/small-craft/generic-military detector.
-Two things still block a Top-10-competitive submission regardless of dataset volume:
+"Local vs. foreign military" remains unsolved for a different reason, it's a labeling/classifier
+problem, not a volume problem (see "Military classification approach" in [TODO.md](TODO.md)).
+
+Verdict: **sufficient to start training a frontal-view detector.** Not yet sufficient to trust
+the same detector on aerial-view input for 5 of 8 classes, that's the single most valuable
+sourcing target now, more valuable than any further frontal-view volume. Three things block a
+Top-10-competitive submission regardless of further pooled-volume growth:
+
+- **Aerial-view coverage for cargo, yacht, speedboat, fishing_boat, military (and to a lesser
+  extent tanker).** Whether this gets fixed by sourcing more aerial-specific datasets, or
+  accepted as a documented model limitation in the Technical Brief, is a decision the team needs
+  to make, not something to discover after Phase 2's hidden stress test.
 
 - **Local vs. foreign military** doesn't exist in any public detection dataset. Build it by
   hand from reference photos (RMN/APMM public releases for "local", foreign navy press photos

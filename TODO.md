@@ -77,20 +77,34 @@ consuming the tool to run official inference once the real clip lands.
       vessel-localization data, not a source of type labels
 - [x] ~~Source more `tanker` data, the last mandatory class below the ~800-1000 floor~~ solved
       2026-07-29 after six sourcing attempts: `roboflow-Tanker.v1i`, `roboflow-VESSELimg.v4i`,
-      `roboflow-Vessel.v2i` downloaded and folded in, +1924 instances (475 -> 2399). Every
-      mandatory class now clears the floor. Full record (dead-end Roboflow slugs, per-dataset
-      breakdown, untried leads) in
-      [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan).
-- [ ] Build the class-remapping table/script: map every raw dataset's classes into the
-      mandatory taxonomy (`container_ship`, `tanker`, `cargo`, `passenger_ferry`, `yacht`,
-      `speedboat`, `fishing_boat`, `military`)
-- [ ] Decide handling for ambiguous/unmapped classes: `Carrier`, `ore carrier`, `Merchant Ship`,
-      `Patrol Boat`, `Sails Boat`, `Tugboat`, `canoe`, `kayak`, `sailboat`, `engineering ship`,
-      `Datasense@CRAS`'s `small boat`/`uncategorized` (drop, bucket into small-craft, or
-      hand-review each)
-- [ ] Decide what to do with generic/unusable sources: `kaggle-satellite` (classification-only,
-      no boxes), `kaggle-MASATI-V2` (non-commercial license only), the SAR-oriented aerial sets
-      (`roboflow-maritime.v3i`, `kaggle-SeaDronesSee`, people/jetski/buoy labels, not ship types)
+      `roboflow-Vessel.v2i` downloaded and folded in, +1924 instances (475 -> 2399 pooled).
+      Full record (dead-end Roboflow slugs, per-dataset breakdown, untried leads) in
+      [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan). Note: this fixed the
+      *pooled* number only, see the frontal/aerial split item below, tanker's aerial count
+      (307) is still thin.
+- [x] ~~Build the class-remapping table + decide handling for ambiguous/unmapped classes
+      (`Carrier`, `ore carrier`, `Merchant Ship`, `Patrol Boat`, `Sails Boat`, `Tugboat`,
+      `canoe`, `kayak`, `sailboat`, `engineering ship`, `Datasense@CRAS`'s
+      `small boat`/`uncategorized`, etc.)~~ definitive mapping written 2026-07-29, recounted
+      directly from label files (not carried over from old prose, which had drifted), see
+      [GUIDELINES.md](GUIDELINES.md#class-remapping-definitive-mapping-recounted-2026-07-29).
+      Still open: turning the table into an actual merge script (see below), and the one
+      explicitly-flagged undecided call (`LNG`/`gas carriers` -> `tanker` or not)
+- [ ] Decide what to do with `kaggle-satellite` (classification-only, no boxes) and
+      `roboflow-maritime.v3i` (SAR-oriented, people/jetski labels not ship types) — both still
+      on disk, neither contributes to the mandatory taxonomy. (`kaggle-MASATI-V2` and
+      `kaggle-SeaDronesSee`, the two other generic/unusable sources, were already deleted, see
+      [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan))
+- [ ] **Source aerial-view data for the 5 mandatory classes with zero aerial coverage**: cargo,
+      yacht, speedboat, fishing_boat, military. Found 2026-07-29 when recounting instances split
+      by view, every mandatory class "cleared the floor" only because the sufficiency table
+      pooled frontal+aerial together; per-view, these 5 classes have literally never been seen
+      by the model from an overhead/drone/satellite angle. `tanker` is also aerial-thin (307)
+      though not zero. Since the mission explicitly requires both frontal and aerial/satellite
+      classification, this is now higher priority than any further frontal-view volume. See
+      [GUIDELINES.md](GUIDELINES.md#data-sufficiency-checked-2026-07-29-recounted-with-frontalaerial-split)
+      for the full breakdown. If sourcing keeps failing, the fallback is documenting this as a
+      known model limitation in the Technical Brief, not silently shipping it undocumented.
 - [ ] Write the frame-extraction + `.mat`-to-YOLO conversion script for Singapore Maritime
       Dataset (`smd-VIS_Onboard`, `smd-VIS_Onshore`, `smd-NIR`), currently raw video + MATLAB
       ground truth, unusable as-is
@@ -98,10 +112,10 @@ consuming the tool to run official inference once the real clip lands.
       consistent train/val/test folders)
 - [ ] Dataset split sanity check: make sure frames extracted from the same source video don't
       end up split across train and val (data leakage)
-- [x] ~~Augmentation/oversampling pass for the thin classes (`tanker`, `yacht`)~~ no longer
-      needed, both solved by sourcing dedicated datasets instead, every mandatory class now
-      clears the ~800-1000 floor, see
-      [GUIDELINES.md](GUIDELINES.md#data-sufficiency-checked-2026-07-29-updated-2026-07-29-after-yacht-sourcing)
+- [x] ~~Augmentation/oversampling pass for the thin *pooled* classes (`tanker`, `yacht`)~~ no
+      longer needed, both solved by sourcing dedicated datasets instead. Pooled counts aren't
+      the whole story though, see the aerial-view sourcing item above, see
+      [GUIDELINES.md](GUIDELINES.md#data-sufficiency-checked-2026-07-29-recounted-with-frontalaerial-split)
 - [ ] Source and label reference photos for the local-vs-foreign military classifier (see
       "Military classification approach" above): RMN ship classes tagged "local", a broad
       foreign-navy set tagged "foreign". Check whether SKN601DEMO (above) is usable as a
