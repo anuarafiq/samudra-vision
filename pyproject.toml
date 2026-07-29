@@ -1,0 +1,10 @@
+[project]
+name = "samudra-vision"
+version = "0.1.0"
+description = "Maritime vessel detection and classification for SEDIC 2026 Visual Track"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "opencv-python>=5.0.0.93",
+    "ultralytics>=8.4.110",
+]
