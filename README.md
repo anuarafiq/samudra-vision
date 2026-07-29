@@ -7,7 +7,8 @@ identification of military vessels and a bonus for distinguishing Malaysian vs. 
 military assets.
 
 See [GUIDELINES.md](GUIDELINES.md) for the full mission brief, class taxonomy, dataset
-inventory, and open problems.
+inventory, and open problems. See [TODO.md](TODO.md) for the team task board (Data, Model, GUI,
+Report roles).
 
 ## Setup
 
