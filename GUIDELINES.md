@@ -65,6 +65,8 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
 | `roboflow-typesofships.v6i.yolov11` | 520/145/85 | buoy (173), sailing_vessel (109), bulk_carrier (108), patrol_vessel (134), kayak (152), tug (64), anchor_handling_tug_supply (63), container (74), **combat_vessel (48)**, **yacht (90)** | CC BY 4.0 |
 | `roboflow-Yacht Detection.v2-alphayacht1.0.yolov11` | 1497/321/321 | **yacht (2297)**, motorship (394), small boat (243), jet ski (162), sailboat (45), ferry (14) | CC BY 4.0 |
 | `roboflow-kapal-penumpang-done.v1i.yolov11` | 1766/421/22 | **single-class by design (see below): kapal_penumpang / passenger ship (2753)** | Public Domain |
+| `roboflow-Tanker.v1i.yolov11` | 1173/146/0 | Boat (637), Cargo (52), CoastGuard (4), Container (42), **Tanker (1326)**, Tug (142) | CC BY 4.0 |
+| `roboflow-Vessel.v2i.yolov11` | 1491/149/84 | Bulker (256), Container (174), Sail (372), gas carriers (209), **tanker (291)**, tug (16), warship (376) | CC BY 4.0 |
 | `smd-VIS_Onboard`, `smd-VIS_Onshore`, `smd-NIR` (Singapore Maritime Dataset) | n/a | raw `.avi` + MATLAB `.mat` ground truth, not annotated for YOLO (see below) | not specified |
 
 **Aerial/satellite-view** (`datasets/aerial-view/`)
@@ -73,9 +75,8 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
 |---|---|---|---|
 | `roboflow-MASATI.v1i.yolov11` | 2797/936/250 | ship (3486), multi (929), coast_multi (573), ok (195), multi_224 (184), water (25) | CC BY 4.0 |
 | `roboflow-maritime.v3i.yolov11` | 2195/29/- | Person in water (6517), Person out of water (1129), Boat (923), Person drowning (356) | CC BY 4.0 |
-| `kaggle-MASATI-V2` | 4522 images, pre-split under `MASATI/output/` | boat (single class, generic) | "non-profit research/educational" only, not CC |
-| `kaggle-SeaDronesSee` | 8930/1547/3750 | COCO format: boat, jetski, swimmer, life_saving_appliances, buoy, ignored | not bundled, check Kaggle page |
 | `kaggle-satellite` | 4000 chips (1000 ship / 3000 no-ship) + 8 full scenes | classification only, no boxes | not bundled, check Kaggle page |
+| `roboflow-VESSELimg.v4i.yolov11` (drone footage, Eurecat Robotics, Valencia Port, H2020 PASSport project) | 4262/1222/608 | Buoy (573), **Chemical (307)**, Container (5535), Passenger-RoRo (1703), Pilot (397), Tugboat (4364) | CC BY 4.0 |
 
 ### Findings that change the plan
 
@@ -113,6 +114,25 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
   Tanker is still the only mandatory class below the comfort floor after five attempts. Generic
   multi-class Roboflow search is no longer productive for this class; next step is likely a
   dedicated tanker-specific source or manual curation rather than another broad ship dataset.
+- **Tanker gap solved (2026-07-29), six attempts total.** Two Roboflow projects looked promising
+  but turned out to be raw-upload-only, same "0 dataset versions" trap as `ships9000`:
+  `gdut-fbja3/vessel-wqp7q` (4,841 images, has Oil Tanker) and `-i1wmc/vessel-yhmsk` (6,092
+  images, has Chemical=chemical tanker), neither downloaded. But `-i1wmc`'s sibling
+  `b-rubi/vesselimg` has the *same 6,092-image pool already packaged into a downloadable
+  version* (drone footage, Eurecat Robotics, Valencia Port, H2020 PASSport project) and two more
+  targeted single-purpose datasets panned out: `hungcheck-siodu/tanker-3s16r` (537 base images)
+  and `1-ty2nq/vessel-5aqsj` (632 images, filenames confirm real tanker ships, e.g.
+  `Scorpio-Tankers-Inc`). All three downloaded and verified directly against `data.yaml` +
+  labels (not the live page): **Tanker (1326, `roboflow-Tanker.v1i`) + Chemical (307,
+  `roboflow-VESSELimg.v4i`, visually confirmed as tanker-hulled vessels not container ships) +
+  tanker (291, `roboflow-Vessel.v2i`) = 1924 new instances**, taking the bucket from 475 to
+  **2399**, comfortably past the ~800-1000 floor. Confirms the same pattern as yacht: a
+  dedicated tanker-only or tanker-heavy dataset succeeds where tanker-as-a-minor-class in a
+  broad ship taxonomy kept failing. HuggingFace and Zenodo were never checked specifically
+  during the search (only Kaggle was, which turned up the "Game of Deep Learning" ship dataset,
+  1,217 tanker images, but whole-image classification not bounding boxes, not a direct fix but
+  worth keeping in mind for a second-stage classifier later) — not urgent now that the floor is
+  cleared, but a place to look first if more tanker volume/diversity is wanted for augmentation.
 - **Container_ship gap solved.** `Datasense@CRAS` adds 6742 container ship instances (923 ->
   7665), by far the single largest class it has. Also adds a genuine `ferry boat` label (1113),
   the first source that isn't just proxying passenger_ferry via "cruise"/"passenger ship". No
@@ -122,9 +142,17 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
   cropping and visually inspecting sample boxes per class ID, not from official docs (none could
   be found, including the associated conference paper). Written into this dataset's `data.yaml`.
   Tanker (475, unrelated to this fix) is now the only remaining "collect more" gap.
-- **Two aerial sets are SAR/rescue-oriented, not vessel-typed**: `roboflow-maritime.v3i` and
-  `kaggle-SeaDronesSee` label people-in-water/jetski/buoy, not ship types. Useful only for
-  generic small-craft localization in aerial view, not for the civilian/military taxonomy.
+- **`roboflow-maritime.v3i` is SAR/rescue-oriented, not vessel-typed**: labels
+  people-in-water/jetski/buoy, not ship types. Useful only for generic small-craft localization
+  in aerial view, not for the civilian/military taxonomy.
+- **Disk cleanup (2026-07-29): dropped two aerial-view datasets, 26GB -> 14GB, zero loss to any
+  mandatory class.** `kaggle-SeaDronesSee` (9.3GB) had the same SAR/rescue problem as
+  `roboflow-maritime.v3i` above but contributed nothing to the sufficiency table either way, and
+  at a third of the entire `datasets/` footprint was the single biggest non-contributor.
+  `kaggle-MASATI-V2` (3.3GB) was also removed: its license ("non-profit research/educational"
+  only, not CC) would have blocked it from a competition submission regardless of relevance, so
+  it carried legal risk with no offsetting value. Deleted from disk, not just unused, if either
+  is needed again they'd need to be re-downloaded from Kaggle.
 - **`kaggle-satellite` is image-classification, not detection**: 80x80px chips labeled
   ship/no-ship (no bounding boxes), plus 8 large scenes meant for sliding-window search. Can't
   be merged into YOLO training directly, best used as a classifier or hard-negative source.
@@ -147,7 +175,7 @@ separate local/foreign step). Generic/ambiguous classes (`ship`, `boat`, `multi`
 `canoe`, `kayak`, `sailboat`, `patrol boat`, `sails boat`, `tugboat`) don't map 1:1 and need
 either a decision to drop, bucket into small-craft, or hand-review.
 
-## Data sufficiency (checked 2026-07-29, updated 2026-07-29 after yacht + tanker + container_ship sourcing)
+## Data sufficiency (checked 2026-07-29, updated 2026-07-29 after yacht + container_ship + tanker sourcing)
 
 Rule of thumb for fine-tuning a pretrained YOLO to a reliable recall number: ~800-1000 train
 instances and ~150-200 validation instances per class. Below that, recall on that class is
@@ -164,17 +192,20 @@ Current instance counts after mapping raw classes into the mandatory taxonomy:
 | speedboat | 3427 | good |
 | fishing_boat | 3472 (+2227 Datasense@CRAS, +253 MyBoats, +159 Buoys and Boats) | good |
 | passenger_ferry | 5246 (+1113 genuine "ferry boat", +278 + 3 "cruise ship", +14 Yacht Detection's ferry, +2753 kapal-penumpang-done, rest still proxied via "cruise"/"passenger ship") | good |
-| tanker | 475 | **still thin, the one remaining "collect more" gap, five attempts have hit diminishing returns** |
+| tanker | 2399 | fixed (was 475), `roboflow-Tanker.v1i` alone contributed 1326 |
 | local vs. foreign military | 0 | still unsolved, doesn't exist in any off-the-shelf dataset |
 
-Tanker has had five targeted sourcing attempts (`Ship2` +101, `MyBoats` +14, MVDD13 a dead end,
-a round of Roboflow searches that found nothing new, and `kapal-penumpang-done` which turned
-out single-class, see findings above) and only
-moved from 360 to 475, well short of the ~800-1000 floor. Multi-class datasets with tanker as a
-minor category keep giving diminishing returns, may need a dedicated tanker-only dataset or
-manual sourcing instead. Yacht was in the same spot until a purpose-built dataset (`Yacht
-Detection`, not yacht-as-a-minor-class in a big ship taxonomy) solved it in one shot, the same
-kind of source may be what unblocks tanker too.
+Tanker took six targeted sourcing attempts (`Ship2` +101, `MyBoats` +14, MVDD13 a dead end, a
+round of Roboflow searches that found nothing new, `kapal-penumpang-done` which turned out
+single-class, then finally `roboflow-Tanker.v1i` + `roboflow-VESSELimg.v4i` + `roboflow-Vessel.v2i`
+which together added 1924, see findings above). Same pattern as yacht: multi-class datasets with
+tanker as a minor category gave diminishing returns until a dedicated tanker-only or
+tanker-heavy dataset (`Tanker` by Hungcheck, mirroring `Yacht Detection`'s role for the yacht
+gap) solved it in one shot.
+
+Every mandatory class now clears the ~800-1000 floor. Only "local vs. foreign military" remains
+unsolved, and that's a labeling/classifier problem, not a volume problem (see "Military
+classification approach" in [TODO.md](TODO.md)).
 
 Verdict: **sufficient to start training** the civilian/small-craft/generic-military detector.
 Two things still block a Top-10-competitive submission regardless of dataset volume:

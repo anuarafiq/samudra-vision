@@ -3,57 +3,6 @@
 Task board for the 4-person team. Background/context lives in [GUIDELINES.md](GUIDELINES.md),
 this file is just the task list. Check items off as they land.
 
-## HANDOFF: keep searching for tanker data (active task)
-
-Current state: `tanker` is at **475 instances**, the only mandatory class still below the
-~800-1000 comfort floor (see [GUIDELINES.md](GUIDELINES.md#data-sufficiency-checked-2026-07-29-updated-2026-07-29-after-yacht-sourcing)).
-Everything else in the taxonomy has cleared it. This is the single open dataset-sourcing task.
-
-**Five attempts already made, all diminishing returns, do not repeat these:**
-1. `Ship2` (Roboflow) — +101, already downloaded and folded in
-2. `MyBoats` (Roboflow) — +14, already downloaded and folded in
-3. **MVDD13** (GitHub `yyuanwang1010/MVDD13`, 35k images, would've been huge) — confirmed dead
-   end, its own GitHub issues show Google Drive requires auth externally can't get, and even the
-   Baidu Pan extraction code (found in issue comments: `1XVC`) reportedly only yields images with
-   no annotations
-4. A full round of Roboflow Universe searches (`class:tanker`, `class:oil`, "tanker detection",
-   Gemi Sınıflandırma, ships-by-yao, georeferencing_intelligence_data, `vessel-detection-1`,
-   `warship` variants, `Vessel` by "1") — everything found was either a duplicate of the
-   already-ruled-out 50-class ShipRSImageNet family, had no tanker class at all, or was
-   unrelated ("oil" spills/cooking oil/tank trucks, not ships)
-5. `kapal-penumpang-done` (2,209 images, same taxonomy as `Ship2` but 4.4x bigger, looked very
-   promising) — downloaded, turned out single-class in the actual export (`kapal_penumpang`,
-   Indonesian for "passenger ship"), zero tanker instances despite the live Roboflow page
-   showing 6 classes including Tanker. **Third time this exact trap has happened** (also
-   `korean_marine_object`, `ships9000`), see the standing caution in [CLAUDE.md](CLAUDE.md#working-with-datasets).
-
-**Two half-explored leads from the last session, not yet resolved:**
-- `vessel` by GDUT (workspace `gdut-fbja3`, 4,840 images: Bulk Carrier, Container Ship, Oil
-  Tanker, Others, Passenger Ship) — user reported the direct URL
-  `universe.roboflow.com/gdut-fbja3/vessel` "not available", but the project appeared in the
-  workspace listing (`universe.roboflow.com/gdut-fbja3`) with that exact name/count. Worth
-  re-checking whether it's actually gone or just a broken link that needs re-navigating from
-  the workspace page.
-- `VESSEL` by New Workspace (6,090 images, includes a `Chemical` class = chemical tanker) — user
-  reported "doesn't have any dataset", likely the same "Dataset: 0 / no generated version" issue
-  `ships9000` had (raw uploaded images never packaged into a downloadable split). If so, it may
-  still be usable by forking it on Roboflow and generating a version yourself, not necessarily
-  dead like the two above.
-
-**Not yet tried:**
-- HuggingFace, Zenodo, or other academic repositories specifically (only Kaggle was tried:
-  found the "Game of Deep Learning" ship dataset there, 1,217 tanker images, but it's
-  whole-image classification not bounding boxes, see the note in
-  [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan) — usable for a second-stage
-  classifier later, not a direct fix)
-- Checking whether a bbox-annotated fork of that same Kaggle "Game of Deep Learning" image pool
-  exists that's bigger than `Ship2`/`kapal-penumpang-done` (the class taxonomy Cargo/Carrier/
-  Cruise/Military/Tanker recurs across many small Roboflow datasets, suggesting they're all
-  forks of the same underlying photo set, worth checking a few more of the ~500-1000 image
-  variants like `Carrier`/`Cargo`/`Tanker` by Hungcheck)
-- Manual curation (ship-spotting sites, stock photo sites) as a fallback if automated search
-  keeps failing
-
 ## Military classification approach (reference)
 
 Decision from planning: how to tell **Malaysian vs. foreign military** vessels apart (the
@@ -126,6 +75,12 @@ consuming the tool to run official inference once the real clip lands.
       re-export it's single-class by design (not a bug), see
       [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan). Use only as generic
       vessel-localization data, not a source of type labels
+- [x] ~~Source more `tanker` data, the last mandatory class below the ~800-1000 floor~~ solved
+      2026-07-29 after six sourcing attempts: `roboflow-Tanker.v1i`, `roboflow-VESSELimg.v4i`,
+      `roboflow-Vessel.v2i` downloaded and folded in, +1924 instances (475 -> 2399). Every
+      mandatory class now clears the floor. Full record (dead-end Roboflow slugs, per-dataset
+      breakdown, untried leads) in
+      [GUIDELINES.md](GUIDELINES.md#findings-that-change-the-plan).
 - [ ] Build the class-remapping table/script: map every raw dataset's classes into the
       mandatory taxonomy (`container_ship`, `tanker`, `cargo`, `passenger_ferry`, `yacht`,
       `speedboat`, `fishing_boat`, `military`)
@@ -143,8 +98,9 @@ consuming the tool to run official inference once the real clip lands.
       consistent train/val/test folders)
 - [ ] Dataset split sanity check: make sure frames extracted from the same source video don't
       end up split across train and val (data leakage)
-- [ ] Augmentation/oversampling pass for the thin classes: `tanker` (461 instances, the only
-      remaining "collect more" gap), `yacht` (637), see
+- [x] ~~Augmentation/oversampling pass for the thin classes (`tanker`, `yacht`)~~ no longer
+      needed, both solved by sourcing dedicated datasets instead, every mandatory class now
+      clears the ~800-1000 floor, see
       [GUIDELINES.md](GUIDELINES.md#data-sufficiency-checked-2026-07-29-updated-2026-07-29-after-yacht-sourcing)
 - [ ] Source and label reference photos for the local-vs-foreign military classifier (see
       "Military classification approach" above): RMN ship classes tagged "local", a broad
