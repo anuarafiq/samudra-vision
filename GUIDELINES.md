@@ -67,7 +67,11 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
 | `roboflow-kapal-penumpang-done.v1i.yolov11` | 1766/421/22 | **single-class by design (see below): kapal_penumpang / passenger ship (2753)** | Public Domain |
 | `roboflow-Tanker.v1i.yolov11` | 1173/146/0 | Boat (637), Cargo (52), CoastGuard (4), Container (42), **Tanker (1326)**, Tug (142) | CC BY 4.0 |
 | `roboflow-Vessel.v2i.yolov11` | 1491/149/84 | Bulker (256), Container (174), Sail (372), gas carriers (209), **tanker (291)**, tug (16), warship (376) | CC BY 4.0 |
+| `converted-vhrships-yolo` (**converted 2026-07-30** from `kaggle-VHRShips` by [scripts/vhrships_to_yolo.py](scripts/vhrships_to_yolo.py), aerial) | 3500/437/439 | container_ship (580), **tanker (1373)**, **cargo (2450)**, passenger_ferry (763), **yacht (1621)**, speedboat (0), fishing_boat (37), **military (616)** — 7440 mapped of 11337 total | MIT |
+| `roboflow-Marina 2.yolov11` | 747/178/74 | **mixed-provenance, fully triaged 2026-07-30, see finding below and [scripts/marina2_twist_triage.py](scripts/marina2_twist_triage.py) — raw counts are NOT the usable counts**: of 1,744 raw instances, only 100 are verified clean aerial (cargo +4, fishing_boat +1, military +92, speedboat +3); the rest is frontal shore-CCTV (cargo 400, passenger 208, redundant with `Seaships7000`), out-of-taxonomy swimmer (984), or confirmed-not-aerial (military 7, speedboat 12, cargo 1) | CC BY 4.0 (**but see license caveat below**) |
 | `smd-VIS_Onboard`, `smd-VIS_Onshore`, `smd-NIR` (Singapore Maritime Dataset) | n/a | raw `.avi` + MATLAB `.mat` ground truth, not annotated for YOLO (see below) | not specified |
+| `roboflow-Simulator 2.v3i.yolov11` (misleading project name, confirmed a merged aggregate of stock photos/harbor CCTV/naval PR shots, not synthetic, see below) | 15642/4332/1725 | bulk carrier (4565), warship (3919), sailing_ship (3703), fishing boat (3455), container ship (3065), speedboat (3110), cargo ship (3050), canoe (3286), cruise ship (1535), passenger ship (1199), coaster (328), RORO (316), aircraft carrier (726), Oil Tanker (122), Others (20), submarine (10) | CC BY 4.0 |
+| `roboflow-IR boats.yolov11` (shore-mounted thermal/IR camera, horizon-level) | 7941/322/135 | motorboat (9175), sailboat (5870), canoe (4532), warship (2547), bulk carrier (1939), liner (1433), yacht (325), container ship (692), unknown_boat (60), tall_buoy (19), boat (19), tugboat (7), fishing_trawler (7), fishing_boat (5), ship (2) | CC BY 4.0 |
 
 **Aerial/satellite-view** (`datasets/aerial-view/`)
 
@@ -77,6 +81,7 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
 | `roboflow-maritime.v3i.yolov11` | 2195/29/- | Person in water (6517), Person out of water (1129), Boat (923), Person drowning (356) | CC BY 4.0 |
 | `kaggle-satellite` | 4000 chips (1000 ship / 3000 no-ship) + 8 full scenes | classification only, no boxes | not bundled, check Kaggle page |
 | `roboflow-VESSELimg.v4i.yolov11` (drone footage, Eurecat Robotics, Valencia Port, H2020 PASSport project) | 4262/1222/608 | Buoy (573), **Chemical (307)**, Container (5535), Passenger-RoRo (1703), Pilot (397), Tugboat (4364) | CC BY 4.0 |
+| `roboflow-kapal.v1i.yolov11` (mix of Google Earth satellite screenshots + real FPV drone footage w/ flight telemetry HUD, Indonesian labels) | 33/9/6 | cargo (58), speedboat (39), **warships (18)**, tanker (14), kapal/generic-ship (14), nelayan/fishing (10), cole cole (8, unidentified, excluded), tongkang/barge (5), tugbuoat (4), tallships (1) | Public Domain per uploader, but caveat below |
 
 ### Findings that change the plan
 
@@ -164,6 +169,76 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
 - **`roboflow-maritime.v3i` is SAR/rescue-oriented, not vessel-typed**: labels
   people-in-water/jetski/buoy, not ship types. Useful only for generic small-craft localization
   in aerial view, not for the civilian/military taxonomy.
+- **The major fine-grained aerial/satellite ship-type benchmarks are all non-commercially
+  licensed (checked 2026-07-29).** Went looking for datasets in `VESSELimg.v4i`'s mold (drone
+  footage, purpose-built vessel-type labels) to fix the 5-zero-aerial-class gap below. Three
+  well-known academic benchmarks have exactly the per-type taxonomy needed: **xView** (DIUx/NGA,
+  `maritime vessel` parent class with motorboat/sailboat/tugboat/barge/fishing vessel/ferry/
+  yacht/container ship/oil tanker children), **FAIR1M** (Gaofen Challenge, ship category split
+  into liquid cargo ship/dry cargo ship/fishing vessel/cruise ship/tugboat/engineering vessel/
+  motorboat/warship), and **ShipRSImageNet** (50 fine-grained categories incl. cargo/container
+  ship/oil tanker/fishing vessel/ferry/yacht plus ~15 named warship hull classes). All three
+  turned out CC BY-NC-SA (xView 4.0, FAIR1M 3.0) or explicit "academic purposes only, commercial
+  use prohibited" (ShipRSImageNet's GitHub README), confirmed against each dataset's own
+  terms/license page, not just a Roboflow mirror's badge. This retroactively explains why an
+  earlier session's tanker-search notes called the ShipRSImageNet family "already ruled out"
+  without stating why. All three are re-uploaded on Roboflow Universe under many different
+  project names (`HiResShipDetection`, `Devided xView Dataset`, `ShipRSImageNet_V1`, `Marine
+  Vessels Detection`, etc.) tagged MIT/Apache/CC BY 4.0 by whoever re-uploaded them, but a
+  re-uploader can't relicense someone else's copyrighted satellite imagery, the source terms
+  still govern. Full write-up and the newly-checked DOTA/NWPU VHR-10 (confirmed generic
+  single-`ship`-class only, same tier as MASATI) in
+  [TODO.md](TODO.md#handoff-source-aerial-view-data-for-5-zero-coverage-classes-active-task).
+  Net effect: `VESSELimg.v4i` is still the only large, freely-licensed, per-type aerial dataset
+  found across two full sourcing sessions. The one live lead, `Marship-OBB9`/`YOLO-UAVShip`
+  (Li et al. 2025, real DJI drone footage, fishing boat/cargo/bulk carrier/tanker/container ship/
+  passenger ship categories), requires emailing the corresponding author for access, not a public
+  download, see the TODO.md handoff for contact details and status.
+- **Three Roboflow candidates downloaded and verified 2026-07-30; class lists lied, actual pixel
+  content is what mattered.** Following up on the marginal candidates flagged in the previous
+  session (`kapal`, `IR boats`, and the then-unchecked `Simulator 2`), all three were downloaded
+  and spot-checked by opening actual sample images, not just reading `data.yaml`, same standard
+  as always. Result: **`kapal` is genuinely aerial, the other two are not**, despite `Simulator
+  2`'s class list looking like the best aerial match found all session:
+  - **`roboflow-kapal.v1i.yolov11` confirmed aerial** — sample images are a mix of Google Earth
+    satellite screenshots (watermarked) and real FPV drone footage (flight telemetry HUD visible:
+    altitude, GPS, ground speed). Recounted directly from label files: 171 instances across 10
+    classes, of which 139 map to the mandatory taxonomy — cargo (58), speedboat (39), warships
+    (18, -> `military`), tanker (14), nelayan/fishing (10, -> `fishing_boat`) — the rest
+    (kapal/generic-ship, cole cole [unidentified], tongkang/barge, tugbuoat, tallships) are
+    generic or outside the taxonomy, excluded same as elsewhere. Tiny relative to the ~800-1000
+    floor, but it's the **second dataset ever found** (after `VESSELimg.v4i`) to contribute real
+    aerial instances to `cargo`/`speedboat`/`military`/`fishing_boat`/`tanker`, and the first for
+    `military`/`speedboat`/`fishing_boat`/`cargo` specifically, all four were sitting at exactly
+    zero. **License caveat**: the uploader tagged it "Public Domain," but a chunk of the images
+    are literally Google Earth screenshots, and Google's satellite imagery isn't public domain
+    regardless of what a re-uploader claims, same mislabeling pattern hit repeatedly this project
+    (see the NC-license finding above). Given the dataset's small size the exposure is minor, but
+    don't cite "Public Domain" at face value in the Technical Brief without flagging this.
+  - **`roboflow-Simulator 2.v3i.yolov11` confirmed NOT aerial**, despite having the best-matching
+    class list found all session (16 classes incl. warship, speedboat, fishing boat, bulk
+    carrier, cargo ship, aircraft carrier, submarine — 32,409 instances, 21.7k images). The
+    "Simulator" project name turned out to be a red herring, it's not synthetic/game-rendered.
+    It's a large merged aggregate of stock photography (a Venice gondola tourist photo showed up
+    in the sample), harbor PTZ/CCTV cameras with on-screen timestamp overlays (same elevated
+    shore-camera style as `SeaShips7000`, already classified frontal in this project), and naval
+    PR photography (mostly shot from dock-level or another vessel, e.g. a cruise ship in port).
+    One sampled image (two warships, sea-level horizon barely below center) looked like it might
+    be a helicopter shot, but that's inconsistent and not something to rely on. Left on disk in
+    `frontal-view/` as documented volume, not integrated into any bucket, `military`/`speedboat`/
+    `fishing_boat`/`cargo`/`tanker` are all already well past floor in frontal, so this adds
+    nothing the sufficiency table needs, and merging in an unvetted aggregate risks near-duplicate
+    content with sources already on disk (e.g. more `SeaShips`-style images).
+  - **`roboflow-IR boats.yolov11` confirmed NOT aerial** — sample thermal images show a
+    sea-level horizon near the bottom third of frame, camera mounted near water height (shore or
+    low tower), not overhead. Good class list (yacht 325, container ship 692, bulk carrier 1939,
+    warship 2547, 26,632 instances total, CC BY 4.0, and now has 3 real dataset versions after
+    being forked to escape the "0 versions" trap noted previously) but same conclusion: frontal,
+    not needed right now since every class it covers is already sufficient in frontal view. Kept
+    on disk as a documented option for thermal/night-vision robustness work later, not integrated.
+  - **Lesson for the rest of this handoff**: a promising class list is not evidence of camera
+    angle. Every remaining Roboflow candidate needs the same treatment, open 3-5 actual sample
+    images and look at them, before spending any more time on `data.yaml` alone.
 - **Disk cleanup (2026-07-29): dropped two aerial-view datasets, 26GB -> 14GB, zero loss to any
   mandatory class.** `kaggle-SeaDronesSee` (9.3GB) had the same SAR/rescue problem as
   `roboflow-maritime.v3i` above but contributed nothing to the sufficiency table either way, and
@@ -172,6 +247,33 @@ adding yacht sources (labels/metadata only, no image or video content opened). I
   only, not CC) would have blocked it from a competition submission regardless of relevance, so
   it carried legal risk with no offsetting value. Deleted from disk, not just unused, if either
   is needed again they'd need to be re-downloaded from Kaggle.
+- **`roboflow-Marina 2` is a mixed-provenance aggregate: its per-class counts must be split by
+  source-filename family before use (checked 2026-07-30).** The dataset's 1,744 instances come from
+  at least five unrelated sources bundled under one 6-class `data.yaml`, and they land in different
+  view buckets. Verified by grouping labels by filename prefix and opening real images from each
+  group: the `0XXXXX` numeric family (cargo 400, passenger 208) is Chinese harbour shore-CCTV with
+  burned-in timestamp/camera-ID overlays and the same numbering convention as
+  `Seaships7000.v1i` already on disk, i.e. **frontal and almost certainly redundant with SeaShips**;
+  `DJI_*` (speedboat 21), `Screenshot from 2024-05-29 *` (fishing_boat 8) and `IPgiBNOPCjQ-*`
+  (speedboat 3) are **genuinely aerial and clean** (true top-down drone / aerial video frames);
+  and the `twist_*` family (military 99, speedboat 15, cargo 5, fishing_boat 1) needed per-image
+  triage. **Update 2026-07-30, triage complete**: all 38 `twist_*` images opened and classified
+  individually, see [scripts/marina2_twist_triage.py](scripts/marina2_twist_triage.py) for the
+  per-image verdict and reasons. 32 of 38 are genuine aerial content (carrier strike groups and
+  container terminals shot from aircraft/drone, small craft from directly above); 6 are not and
+  were dropped: 2 sea-level/horizon shots (from another vessel, not aerial), 2 elevated-shore
+  shots (a Venice canal from a building balcony; a riverbank phone photo watermarked "SHOT ON
+  OPPO"), 1 hillside scenic overlook, and 1 **CGI render** of a frigate. Net clean aerial
+  instances from `twist_*`: military +92, speedboat +3, cargo +4, fishing_boat +1 (dropped:
+  military 7, speedboat 12, cargo 1). Combined with the other clean families, `Marina 2`'s total
+  verified aerial contribution is speedboat +27, fishing_boat +9, military +92, cargo +4, all
+  folded into the sufficiency table below. **License caveat**: tagged CC BY 4.0 by the uploader,
+  but the content
+  demonstrably includes third-party-watermarked forum scrapes, YouTube video frames, and synthetic
+  renders, so that tag can't be cited unqualified in the Technical Brief — same mislabeling pattern
+  as `kapal`'s Google Earth screenshots. This is the clearest case yet of why this project opens
+  sample images instead of trusting `data.yaml`: the raw counts alone would have suggested ~99
+  aerial military and 39 aerial speedboat instances, and both numbers are wrong.
 - **`kaggle-satellite` is image-classification, not detection**: 80x80px chips labeled
   ship/no-ship (no bounding boxes), plus 8 large scenes meant for sliding-window search. Can't
   be merged into YOLO training directly, best used as a classifier or hard-negative source.
@@ -196,6 +298,16 @@ splits every number by `frontal-view`/`aerial-view`, see
 [Data sufficiency](#data-sufficiency-checked-2026-07-29-recounted-with-frontalaerial-split) for
 why that split matters.
 
+**Two sources' mappings now live in code, not in this table.** `VHRShips` is mapped by the `MAP`
+dict in [scripts/vhrships_to_yolo.py](scripts/vhrships_to_yolo.py) (34 raw classes -> 7 buckets,
+with the deliberate exclusions documented in that file and in
+[TODO.md](TODO.md)'s VHRShips section), and its output `converted-vhrships-yolo/` is already
+written in the canonical taxonomy order, so it needs no remapping at merge time. When the unified
+merge script gets written, that script's class order is the one to match:
+`container_ship, tanker, cargo, passenger_ferry, yacht, speedboat, fishing_boat, military`.
+`Marina 2` deliberately has **no** entry below because its raw counts are not usable per-bucket
+without the source-family split described in the findings above.
+
 **Mapped classes, grouped by mandatory bucket** (dataset :: raw class = instances [view]):
 
 - **container_ship**: `VESSELimg.v4i` :: Container = 5535 [aerial] · `Seaships7000.v1i` ::
@@ -204,8 +316,8 @@ why that split matters.
   :: Container = 42 [frontal] · `ship detection.v2i` :: container ship = 22 [frontal]
 - **tanker**: `Tanker.v1i` :: Tanker = 1326 [frontal] · `vessel.v1i` :: Tanker = 350 [frontal] ·
   `VESSELimg.v4i` :: Chemical = 307 [aerial] · `Vessel.v2i` :: tanker = 291 [frontal] · `Ship2.v1i`
-  :: Tanker = 101 [frontal] · `MyBoats.v2i` :: Oil tanker = 14 [frontal] · `ship detection.v2i`
-  :: tanker = 10 [frontal]
+  :: Tanker = 101 [frontal] · `MyBoats.v2i` :: Oil tanker = 14 [frontal] · `kapal.v1i` :: tanker =
+  14 [aerial] · `ship detection.v2i` :: tanker = 10 [frontal]
 - **cargo**: `Seaships7000.v1i` :: ore carrier = 2195, bulk cargo carrier = 1941, general cargo
   ship = 1501 [all frontal] · `Boats Detection.v15i` :: cargo = 504 [frontal] · `Sea Vessels
   Dataset` :: Merchant Ship = 366 [frontal] · `vessel.v1i` :: Carrier = 356, Cargo = 336
@@ -213,7 +325,7 @@ why that split matters.
   [frontal] · `Vessel.v2i` :: Bulker = 256 [frontal] · `Buoys and Boats` :: merchant_ship = 245
   [frontal] · `ship detection.v2i` :: cargo ship = 244 [frontal] · `typesofships.v6i` ::
   bulk_carrier = 108 [frontal] · `Ship2.v1i` :: Cargo = 100, Carrier = 100 [frontal] ·
-  `Tanker.v1i` :: Cargo = 52 [frontal]
+  `Tanker.v1i` :: Cargo = 52 [frontal] · `kapal.v1i` :: cargo = 58 [aerial]
 - **passenger_ferry**: `kapal-penumpang-done` :: kapal_penumpang = 2753 [frontal] ·
   `VESSELimg.v4i` :: Passenger-RoRo = 1703 [aerial] · `ship detection.v2i` :: passenger ship =
   1073 [frontal] · `vessel.v1i` :: Cruise = 685 [frontal] · `Seaships7000.v1i` :: passenger ship
@@ -224,20 +336,24 @@ why that split matters.
   [frontal] · `Boats Detection.v15i` :: yacht = 276 [frontal] · `typesofships.v6i` :: yacht = 90
   [frontal] · `Buoys and Boats` :: yacht = 3 [frontal]
 - **speedboat**: `ship detection.v2i` :: speedboat = 3070 [frontal] · `Boats Detection.v15i` ::
-  speed = 348 [frontal] · `MyBoats.v2i` :: Speed boat = 9 [frontal]
+  speed = 348 [frontal] · `MyBoats.v2i` :: Speed boat = 9 [frontal] · `kapal.v1i` :: speedboat =
+  39 [aerial]
 - **fishing_boat**: `Seaships7000.v1i` :: fishing boat = 2187 [frontal] · `ship detection.v2i`
   :: fishing boat = 527 [frontal] · `Sea Vessels Dataset` :: Fishing Boat = 346 [frontal] ·
   `MyBoats.v2i` :: Fishing vessel = 253 [frontal] · `Buoys and Boats` :: fishing_boat = 159
-  [frontal]
+  [frontal] · `kapal.v1i` :: nelayan = 10 [aerial]
 - **military**: `Warship.v4i` :: warship = 3435 [frontal] · `ship detection.v2i` :: warship =
   404 [frontal] · `Sea Vessels Dataset` :: Military Ship = 383 [frontal] · `Vessel.v2i` ::
   warship = 376 [frontal] · `vessel.v1i` :: Warship = 347 [frontal] · `Sea Vessels Dataset` ::
   Submarine = 315 [frontal] · `Ship2.v1i` :: Military = 104 [frontal] · `typesofships.v6i` ::
-  combat_vessel = 48 [frontal]
+  combat_vessel = 48 [frontal] · `kapal.v1i` :: warships = 18 [aerial]
 
-Note every aerial-view contribution across the entire taxonomy comes from exactly one dataset,
-`VESSELimg.v4i` (Container, Chemical, Passenger-RoRo). No other aerial source contributes a
-single mandatory-class instance, see the finding below.
+Aerial-view contributions now come from two datasets: `VESSELimg.v4i` (Container, Chemical,
+Passenger-RoRo — the bulk of the volume) and, as of 2026-07-30, `kapal.v1i` in small amounts
+(cargo, speedboat, tanker, fishing_boat, military — the first non-zero aerial evidence for four
+of those five). No other aerial source on disk contributes a mandatory-class instance, see the
+verification finding above for what got checked and ruled out this round (`Simulator 2`,
+`IR boats`, both confirmed frontal despite promising class lists).
 
 **Excluded classes (generic, ambiguous, or outside the taxonomy)** — deliberately left
 unmapped, not an oversight, decision still open per dataset:
@@ -278,20 +394,35 @@ decisions, see the note at the top of the class-remapping section.
 
 | Bucket | Frontal | Aerial | Total | Status |
 |---|---|---|---|---|
-| container_ship | 1327 | 5535 | 6862 | good total, but weakest **frontal** count of any class |
-| tanker | 2092 | 307 | 2399 | good total, but weakest **aerial** count of any non-zero class |
-| cargo | 8733 | **0** | 8733 | good total, **zero aerial** |
-| passenger_ferry | 5261 | 1703 | 6964 | good in both views independently |
-| yacht | 3027 | **0** | 3027 | good total, **zero aerial** |
-| speedboat | 3427 | **0** | 3427 | good total, **zero aerial** |
-| fishing_boat | 3472 | **0** | 3472 | good total, **zero aerial** |
-| military | 5412 | **0** | 5412 | good total, **zero aerial** |
+| container_ship | 1327 | 6115 | 7442 | good total, but weakest **frontal** count of any class |
+| tanker | 2092 | 1694 | 3786 | **aerial floor CLEARED 2026-07-30** by the VHRShips conversion |
+| cargo | 8733 | 2512 | 11245 | **aerial floor CLEARED 2026-07-30** by the VHRShips conversion |
+| passenger_ferry | 5261 | 2466 | 7727 | good in both views independently |
+| yacht | 3027 | 1621 | 4648 | **aerial floor CLEARED 2026-07-30**, went from literal zero to comfortably over floor in one step |
+| speedboat | 3427 | 66 | 3493 | good total, aerial **thinnest class now, ~13x under floor** |
+| fishing_boat | 3472 | 56 | 3528 | good total, aerial **still ~15x under floor** |
+| military | 5412 | 726 | 6138 | good total, aerial **close to floor, ~75-275 short** depending on how strict the target is read |
 | local vs. foreign military | 0 | 0 | 0 | still unsolved, doesn't exist in any off-the-shelf dataset |
 
+**Update 2026-07-30 (VHRShips converted): the aerial gap is now mostly closed.** Converting
+VHRShips to YOLO ([scripts/vhrships_to_yolo.py](scripts/vhrships_to_yolo.py)) added 7,440 aerial
+instances in one step and cleared the floor outright for `yacht` (0 -> 1621, the class that had
+been at literal zero across three sourcing sessions), `cargo` and `tanker` (321 -> 1694).
+**Update 2026-07-30, `Marina 2` fully triaged** (see the finding above and
+[scripts/marina2_twist_triage.py](scripts/marina2_twist_triage.py)) added a further military
++92, speedboat +3, fishing_boat +1, cargo +4 of genuinely aerial, hand-verified content on top of
+that. `military` now sits at 726 (was 18 at the start of the day), close to the floor but not
+over it. **Two classes remain clearly open in aerial view**: `speedboat` (66, thinnest, VHRShips
+had nothing mappable to it and `Marina 2` only added a handful) and `fishing_boat` (56, VHRShips's
+own `fishing` class is only 37 instances). Both need new sourcing, not more triage of what's
+already on disk, everything usable in the currently-downloaded sources has now been counted.
+
 Every pooled total clears the ~800-1000 floor, which is why earlier passes over this table (in
-both this doc and TODO.md) called the class taxonomy fully solved. Per-view, the picture is
-different: **5 of 8 mandatory classes have zero aerial-view training data**, and `tanker`'s
-aerial count (307) is well under floor even though its pooled total looks fine. Only
+both this doc and TODO.md) called the class taxonomy fully solved, that reasoning was hiding the
+per-view problem above and the same trap is worth avoiding again now that most of it is fixed:
+`speedboat` and `fishing_boat` are still genuinely unfit for aerial input.
+`yacht` remains at literal zero aerial instances, no dataset found yet contributes any. `tanker`'s
+aerial count (321) is still well under floor even though its pooled total looks fine. Only
 `passenger_ferry` and `container_ship` have real coverage in both views independently. See the
 finding above ("Aggregate sufficiency numbers were hiding a severe frontal/aerial imbalance")
 for what's driving this and why it matters for this project's mission specifically (frontal
@@ -308,9 +439,11 @@ gap though, only `VESSELimg.v4i` (aerial) contributed, and only 307 instances.
 "Local vs. foreign military" remains unsolved for a different reason, it's a labeling/classifier
 problem, not a volume problem (see "Military classification approach" in [TODO.md](TODO.md)).
 
-Verdict: **sufficient to start training a frontal-view detector.** Not yet sufficient to trust
-the same detector on aerial-view input for 5 of 8 classes, that's the single most valuable
-sourcing target now, more valuable than any further frontal-view volume. Three things block a
+Verdict: **sufficient to start training a frontal-view detector, and now also an aerial-view
+detector for 5 of 8 classes** (container_ship, tanker, cargo, passenger_ferry, yacht). `military`
+is close but not quite there. Not yet sufficient to trust it on aerial input for `speedboat` or
+`fishing_boat` specifically, those two are the remaining sourcing target, and every
+already-downloaded source has now been triaged for them, further gains need new data. Three things block a
 Top-10-competitive submission regardless of further pooled-volume growth:
 
 - **Aerial-view coverage for cargo, yacht, speedboat, fishing_boat, military (and to a lesser
