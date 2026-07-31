@@ -18,5 +18,6 @@ uv sync
 
 ## Datasets
 
-Not tracked in git (19GB+). Already downloaded under `datasets/frontal-view/` and
-`datasets/aerial-view/`, see [GUIDELINES.md](GUIDELINES.md#dataset-inventory) for sources.
+Not tracked in git (~20GB). Already downloaded as one flat folder per dataset under
+`datasets/`, see [GUIDELINES.md](GUIDELINES.md#dataset-inventory) for the full inventory, per-class
+counts, camera angle and licence of each.
