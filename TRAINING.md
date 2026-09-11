@@ -6,7 +6,14 @@ inventory, [TODO.md](TODO.md) has the task board.
 
 ## What you're getting
 
-`merged-yolo.tar`, 4.41GB. Unpack anywhere:
+`samudra-merged-yolo.tar`, 4.41GB. If it arrived split into parts (FAT32 caps files at
+4GB), reassemble first:
+
+```bash
+cat samudra-merged-yolo.tar.part.* > samudra-merged-yolo.tar
+```
+
+Unpack anywhere:
 
 ```bash
 tar -xf samudra-merged-yolo.tar -C /wherever/
@@ -14,6 +21,11 @@ tar -xf samudra-merged-yolo.tar -C /wherever/
 
 You get a standard YOLO layout. `data.yaml` uses relative paths, so it works from wherever
 you unpack it.
+
+`samudra-merged-yolo.tar` is the only thing training needs. If you also received
+`output.z01`-`output.z08` / `output.zip`, that's the full raw `datasets/` folder (all ~19
+source datasets plus intermediates, ~29GB), included on request. It's not needed to run
+the commands below, only for re-deriving the merge or auditing a source dataset directly.
 
 ```
 merged-yolo/

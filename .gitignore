@@ -19,3 +19,7 @@ weights/
 # OS
 .DS_Store
 .gstack/
+
+# handoff archives (split zip of datasets/, generated locally)
+output.z*
+output.zip
