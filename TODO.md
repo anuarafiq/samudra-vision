@@ -288,7 +288,8 @@ consuming the tool to run official inference once the real clip lands.
       per-image attribution in `credits.csv` (87 Public domain, 53 CC0, rest CC BY/BY-SA).
       0 exact duplicates, 0 undecodable. "Foreign" needs no sourcing — crop from
       `merged-yolo`'s existing 6,524 `military` boxes
-- [ ] **Triage `wikimedia-rmn` — it is NOT usable as-is.** Reviewed all 80 `lekiu_frigate` and
+- [x] ~~Triage `wikimedia-rmn` — it is NOT usable as-is~~ **filename-driven pass done
+      2026-07-30, visual pass done 2026-09-11.** Reviewed all 80 `lekiu_frigate` and
       all 58 `patrol` images 2026-07-30. **A Commons category means "this photo is associated
       with X", not "this photo shows X"** — the same class of trap as the Roboflow
       page-vs-download mismatch, and it bites hard here:
@@ -324,7 +325,32 @@ consuming the tool to run official inference once the real clip lands.
 
       **51 is an upper bound, not a final count** — it still contains distant/occluded hulls
       and at least one museum scale-model shot that only a careful per-image visual pass will
-      catch. Realistic trainable local set: **~40-45**
+      catch.
+
+      **Visual pass done 2026-09-11** by
+      [scripts/wikimedia_rmn_visual_triage.py](scripts/wikimedia_rmn_visual_triage.py), all 51
+      `rmn` images opened at full resolution (not the 175px contact sheet). 13 rejected: the
+      predicted museum scale-model (a display-case photo, not a real vessel), a misfiled/
+      duplicate image, a busy multi-ship formation with 3 unidentified vessels, a hull under
+      construction in red primer, a hull mostly hidden by ceremonial smoke, two Scorpene photos
+      with no RMN markings at all (generic hull, also operated by India/Chile/Brazil, shot
+      during French sea trials), and 5 equipment/interior close-ups (radar, torpedo tubes,
+      bridge) that the filename regex missed and are now folded into `detail`. Final:
+
+      | verdict | n | |
+      |---|---|---|
+      | `rmn` | **38** | confirmed trainable "local" set |
+      | `detail` | 14 | RMN but weapon/radar/bridge/boarding close-ups, no hull silhouette |
+      | `rmn_reject` | 8 | RMN but museum model / misfiled / formation-contaminated / under
+        construction / smoke-occluded / no visible national markings |
+      | `foreign` | 90 | other navies + multinational exercises |
+      | `mmea` | 55 | Malaysian coast guard, excluded by the RMN-only decision |
+      | `unknown` | 15 | no nationality signal in the title |
+
+      38 lands a bit under the ~40-45 pre-look guess. Worth flagging for whoever trains the
+      classifier: 38 "local" against ~5,975 croppable "foreign" `military` boxes already in
+      `merged-yolo` is roughly **1:157** before any subsampling, worse than the ~1:27 the
+      220-image pre-triage set implied.
 - [ ] Write the crop-extraction step for the "foreign" half: pull `military` boxes out of
       `merged-yolo`, excluding `kapal` and `marina2` (possible Malaysian contamination), and
       subsample to a sane ratio against the triaged local set
