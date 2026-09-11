@@ -13,7 +13,16 @@ Built by [scripts/merge_dataset.py](scripts/merge_dataset.py) from 2 pre-convert
 (pass-through) + 16 native Roboflow sources (per-source class remap) + `Marina 2`'s clean-aerial
 subset. No source's own train/val/test split was reshuffled. Rerunnable and safe to delete.
 
-**Final counts — all 8 buckets matched their predicted totals exactly, no drift:**
+**Note (2026-09-11): the per-split counts below are the original 2026-07-30 numbers, now
+superseded.** The Member A "Dataset split sanity check" item further down found real cross-split
+leakage in several sources and `merge_dataset.py` now corrects it via
+[scripts/split_overrides.py](scripts/split_overrides.py) — "no source's own split was reshuffled"
+above is no longer quite true, see that entry for what changed and why. Class totals (this table's
+`total` column) are unaffected; only the train/val/test columns shifted. Current numbers: train
+31,211 img / 50,472 inst, val 2,247 img / 3,924 inst, test 1,405 img / 3,002 inst.
+
+**Final counts — all 8 buckets matched their predicted totals exactly, no drift (2026-07-30,
+split columns since corrected, see note above):**
 
 | bucket | train | val | test | total |
 |---|---|---|---|---|
@@ -144,13 +153,21 @@ The two halves are asymmetric in a way that works in our favour:
   `vhrships`, `shipdetectionv2`, `kfgod`, `vesselv1`/`v2`, `ship2`, `typesofships`. Those are
   overwhelmingly foreign navies. Crop them from `merged-yolo` rather than downloading anything.
 
-Two open problems on this, neither solved yet:
+Two open problems on this, both now solved 2026-09-11:
 
-1. **Class imbalance ~1:27** (220 local vs 5,975 foreign) before triage. Subsample foreign or
-   weight the loss; don't train on the raw ratio.
+1. **Class imbalance ~1:157** (38 confirmed local vs 5,975 croppable foreign, worse than the
+   ~1:27 the pre-triage 220-image guess implied). **Solved**: subsample foreign to 5:1 against
+   the actual `rmn` count rather than training on the raw ratio — 190 foreign crops sampled,
+   fixed seed for reproducibility.
 2. **Possible Malaysian contamination in the "foreign" pool.** `kapal` (18 military boxes) is
-   Indonesian/Malaysian-sourced and `marina2` (92) is mixed-provenance. Small, but they'd be
-   mislabelled `foreign`. Check before training, or just exclude those two sources.
+   Indonesian/Malaysian-sourced and `marina2` (92) is mixed-provenance. **Solved**: both
+   excluded by their `tag__` filename prefix before cropping or sampling.
+
+Done by [scripts/wikimedia_rmn_crop_foreign.py](scripts/wikimedia_rmn_crop_foreign.py) ->
+`datasets/military-foreign-crops/{all,sampled,manifest.csv}` (5,557 eligible crops, 190 sampled,
+12% padding around each YOLO box). Ready for Member B: foreign =
+`datasets/military-foreign-crops/sampled/`, local = the 38 `rmn`-verdict rows in
+`datasets/wikimedia-rmn/triage.csv`.
 
 Tradeoff that survives the change: this still needs a roughly broadside view, and gets harder
 from directly overhead. A large share of our `military` instances are aerial (`vhrships` 616,
@@ -278,8 +295,61 @@ consuming the tool to run official inference once the real clip lands.
       matched their expected totals exactly. Verified: 0 broken symlinks, 0 corrupt images under
       `ultralytics`, 0 stems shared across splits (no leakage), crops opened per class per source.
       `inesctec-Datasense@CRAS` stays excluded as the ~87%-duplicate finding requires
-- [ ] Dataset split sanity check: make sure frames extracted from the same source video don't
-      end up split across train and val (data leakage)
+- [x] ~~Dataset split sanity check: make sure frames extracted from the same source video don't
+      end up split across train and val~~ **done 2026-09-11.** Bigger than expected: on top of
+      within-source video-frame leakage (a prior session found `Marina 2`'s 21-frame `DJI_*`
+      leak), this pass found **cross-source duplicate photos** — several "different" Roboflow
+      projects were built from the same underlying stock/CCTV photos, so the identical image
+      could land in train via one project and test via another. Confirmed visually before fixing
+      anything: `MyBoats.v2i`'s frame `000141` and `Seaships7000.v1i`'s `000141` are the same CCTV
+      capture (`2017-01-04 10:02:47` burned into both); `vessel.v1i`'s `709508` (train) is the same
+      cruise-ship stock photo as `Ship2.v1i`'s `709508` (test).
+
+      Two flagged-but-unverified candidates turned out to be **false positives** and were
+      deliberately left untouched: `converted-vhrships-yolo`'s `PE_002`/`PE_003`/etc. are
+      per-instance catalog numbers for unrelated individual ships (not video frames), and
+      `Sea Vessels Dataset.v2`'s `yacht_4`/`yacht_5`/etc. are the same — a 4-panel mosaic next to
+      an unrelated single megayacht photo. Numeric-adjacency alone isn't proof; every fix below
+      was confirmed by opening actual images first.
+
+      Detector: [scripts/check_split_leakage.py](scripts/check_split_leakage.py) (writes nothing,
+      flags candidates by filename adjacency/duplication for manual confirmation). Fix:
+      [scripts/split_overrides.py](scripts/split_overrides.py), consulted by
+      `scripts/merge_dataset.py`'s `process_native`/`process_preconverted` — union-find over (a)
+      confirmed within-source video sessions (`VESSELimg`, `Seaships7000`, `Yacht Detection`,
+      `kapal-penumpang-done`'s timestamped frames, `Buoys and Boats`' `buoy_b_2_`/`youtube-`
+      frames) and (b) exact-filename duplicates across different sources, then forces each
+      resulting group into whichever split already holds most of its members (ties favour train,
+      since moving a duplicate into train can't inflate an eval metric). 4,427 of 34,862 images
+      reassigned. Total instances/classes unchanged (`--check`'s 12 `EXPECTED_*` assertions still
+      pass exactly), only the split distribution shifted:
+
+      | split | before | after |
+      |---|---|---|
+      | train | 27,428 img / 45,318 inst | 31,211 img / 50,472 inst |
+      | val | 3,802 img / 6,068 inst | 2,247 img / 3,924 inst |
+      | test | 3,633 img / 6,013 inst | 1,405 img / 3,002 inst |
+
+      **val/test shrank by ~45%** (9,701 → 5,329 combined instances) — real held-out data was
+      never as large as it looked, a lot of it was near-duplicates of train. Re-verified after
+      the fix: 0 broken symlinks, exact 1:1 image/label pairing, 0 stems shared across splits,
+      and the specific confirmed-leaking groups spot-checked to now land in one split (e.g. all
+      696 frames of `VESSELimg`'s `2023-06-27-14-31-00` session are now in `train`; the `709508`
+      quadruplet across `vessel.v1i`/`Ship2.v1i`/`kapal-penumpang-done` is now all in `train`).
+
+      **`Marina 2`'s 21-frame leak: decided (b), accepted and documented, not fixed.** Left out of
+      `split_overrides.py` on purpose — at 21 frames it's two orders of magnitude smaller than
+      what this pass actually found and fixed (4,427 images), not worth the special-case code.
+
+      **Not exhaustively checked**: sources whose own numeric filenames showed adjacency
+      (`Warship.v4i`, `typesofships.v6i`, `kapal.v1i`, `ship detection.v2i`, `Tanker.v1i`,
+      `Ship2.v1i`/`vessel.v1i`/`MyBoats.v2i`'s own-internal sequences) were deliberately **not**
+      given the within-source video-session treatment — no independent confirmation they're
+      continuous recordings rather than per-instance catalogs (that's exactly how VHRShips and Sea
+      Vessels turned out to be false leads). They still benefit from the cross-source
+      duplicate-detection half of the fix wherever they share an exact filename with another
+      source, just not from adjacency-based grouping of their own numbering. If per-class metrics
+      on these specific classes look off later, this is the first place to re-check.
 - [x] ~~Augmentation/oversampling pass for the thin *pooled* classes (`tanker`, `yacht`)~~ no
       longer needed, both solved by sourcing dedicated datasets instead
 - [x] ~~Source reference photos for the "local" half of the military classifier~~ **done
@@ -351,9 +421,9 @@ consuming the tool to run official inference once the real clip lands.
       classifier: 38 "local" against ~5,975 croppable "foreign" `military` boxes already in
       `merged-yolo` is roughly **1:157** before any subsampling, worse than the ~1:27 the
       220-image pre-triage set implied.
-- [ ] Write the crop-extraction step for the "foreign" half: pull `military` boxes out of
-      `merged-yolo`, excluding `kapal` and `marina2` (possible Malaysian contamination), and
-      subsample to a sane ratio against the triaged local set
+- [x] ~~Write the crop-extraction step for the "foreign" half~~ **done 2026-09-11**: see the
+      "Military classification approach" section above for the resolved ratio/contamination
+      decisions and output paths. Handed off to Member B
 - [ ] Build the frame-extraction + labeling tool (see "Validation strategy" above) before the
       Qualifier Video Clip is even released, so it's ready to run the moment it drops
 - [ ] Source a handful of real-world proxy videos (harbor/coastal CCTV, drone footage,
@@ -372,10 +442,13 @@ consuming the tool to run official inference once the real clip lands.
       installed via `ultralytics`), decide single unified model vs. separate frontal-view /
       aerial-view models
 - [ ] Set up training environment parity between Colab and local RTX 4050 (CUDA version,
-      `ultralytics` version pinned in `pyproject.toml`). **Transfer bundle ready**:
-      `~/samudra-merged-yolo.tar` (4.41GB, verified 0 symlink entries, 27428/3802/3633 +
-      `data.yaml`). `merged-yolo` is symlinks into per-source folders and is **not portable
-      as-is** — materialise with `tar -chf` (the `-h` dereferences) or `rsync -aL`
+      `ultralytics` version pinned in `pyproject.toml`). **Transfer bundle STALE as of
+      2026-09-11**: `~/samudra-merged-yolo.tar` (4.41GB, 27428/3802/3633) was built before the
+      "Dataset split sanity check" fix below moved 4,427 images between splits (val/test shrank
+      ~45%). If training already started from that tar, its val/test numbers are inflated by
+      cross-split duplicates — re-tar `datasets/merged-yolo/` (now 31211/2247/1405) and re-check
+      any metrics already recorded. `merged-yolo` is symlinks into per-source folders and is
+      **not portable as-is** — materialise with `tar -chf` (the `-h` dereferences) or `rsync -aL`
 - [ ] Baseline training run on Member A's merged dataset, sanity-check per-class metrics.
       **Unblocked as of 2026-07-30**: `datasets/merged-yolo/data.yaml`, `nc: 8`, 34,863 images /
       57,398 instances, verified (see the RESOLVED merge section at the top of this file for the

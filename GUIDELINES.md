@@ -141,6 +141,22 @@ any new candidate):
   `data.yaml`.
 - Check license before investing time. `kaggle-MASATI-V2`'s "non-profit research/educational
   only" license got it deleted after already being on disk, wasted effort.
+- A source's own train/valid/test split can leak across itself, and different sources can secretly
+  share the same underlying photos. Found 2026-09-11 during the dataset split sanity check
+  (TODO.md, Member A): `VESSELimg.v4i`/`Seaships7000.v1i`/`Yacht Detection.v2` encode a continuous
+  video recording per-frame in their filenames, then Roboflow split per-frame instead of
+  per-recording — every session leaks across all three splits. Separately, `MyBoats.v2i` and
+  `Seaships7000.v1i` turned out to share the exact same CCTV frames (same timestamp burned into
+  both images), and `vessel.v1i`/`Ship2.v1i`/`kapal-penumpang-done.v1i`/`Warship.v4i` share the
+  same stock-photo pool — the identical photo can land in train via one "different" Roboflow
+  project and test via another. **But sequential-looking filenames aren't proof by themselves**:
+  `converted-vhrships-yolo`'s `PE_002`/`PE_003`/etc. and `Sea Vessels Dataset.v2`'s
+  `yacht_4`/`yacht_5`/etc. looked identical to the real leaks by filename pattern alone, and
+  turned out to be per-instance catalog numbers for completely unrelated ships — open the actual
+  images before trusting a numeric-adjacency heuristic. Detector:
+  [scripts/check_split_leakage.py](scripts/check_split_leakage.py); fix:
+  [scripts/split_overrides.py](scripts/split_overrides.py). Full writeup in TODO.md's Member A
+  section.
 
 **Ruled out for aerial-view vessel-type sourcing, don't re-check** (grouped by why they failed;
 all confirmed via the dataset's own license page/data.yaml/sample images, not a mirror's claims):

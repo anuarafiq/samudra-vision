@@ -47,6 +47,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 import marina2_twist_triage as marina2_triage
+import split_overrides
 
 REPO = Path(__file__).resolve().parent.parent
 DATASETS = REPO / "datasets"
@@ -206,6 +207,7 @@ def process_native(folder_name, tag, class_map, bucket_counts, write=True):
             img_candidates = list(images_dir.glob(label_path.stem + ".*"))
             if not img_candidates:
                 continue
+            out_split = split_overrides.resolve_split(folder_name, label_path.stem, our_split)
             lines = []
             for line in label_path.read_text().splitlines():
                 parts = line.split()
@@ -217,7 +219,7 @@ def process_native(folder_name, tag, class_map, bucket_counts, write=True):
                     continue
                 lines.append(f"{CLASS_ID[bucket]} {' '.join(parts[1:5])}")
                 bucket_counts[bucket] += 1
-            link_pair(our_split, tag, label_path.stem, img_candidates[0], lines, write=write)
+            link_pair(out_split, tag, label_path.stem, img_candidates[0], lines, write=write)
 
 
 def process_marina2(bucket_counts, write=True):
@@ -260,10 +262,11 @@ def process_preconverted(folder_name, tag, bucket_counts):
             img_candidates = list(images_dir.glob(label_path.stem + ".*"))
             if not img_candidates:
                 continue
+            out_split = split_overrides.resolve_split(folder_name, label_path.stem, split)
             lines = label_path.read_text().splitlines()
             for line in lines:
                 bucket_counts[CLASSES[int(line.split()[0])]] += 1
-            link_pair(split, tag, label_path.stem, img_candidates[0], lines)
+            link_pair(out_split, tag, label_path.stem, img_candidates[0], lines)
 
 
 def main():
