@@ -164,8 +164,10 @@ Two open problems on this, both now solved 2026-09-11:
    excluded by their `tag__` filename prefix before cropping or sampling.
 
 Done by [scripts/wikimedia_rmn_crop_foreign.py](scripts/wikimedia_rmn_crop_foreign.py) ->
-`datasets/military-foreign-crops/{all,sampled,manifest.csv}` (5,557 eligible crops, 190 sampled,
-12% padding around each YOLO box). Ready for Member B: foreign =
+`datasets/military-foreign-crops/{all,sampled,manifest.csv}` (5,783 eligible crops as of
+2026-09-11's split-leakage fix moving images into `train`, was 5,557 before; still 190 sampled,
+12% padding around each YOLO box — regenerate by re-running the script if `merged-yolo` changes
+again). Ready for Member B: foreign =
 `datasets/military-foreign-crops/sampled/`, local = the 38 `rmn`-verdict rows in
 `datasets/wikimedia-rmn/triage.csv`.
 
